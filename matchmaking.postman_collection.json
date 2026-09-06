@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "AI Matchmaking Model",
+    "_postman_id": "matchmaking-v2",
+    "description": "2 APIs:\n  1. POST /users       → Backend sends all user data\n  2. GET  /match/{id}  → Get matchmaking results for a user\n  GET  /health         → Health check\n\nStart: uvicorn app:app --host 0.0.0.0 --port 8010\nSwagger: http://localhost:8010/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8010",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Health Check",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+        "description": "Check server health + how many users are loaded."
+      }
+    },
+    {
+      "name": "2 - Upload Users (POST /users)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Users stored', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.success).to.be.true;",
+              "  pm.expect(json.total_users).to.be.above(0);",
+              "  console.log('Users stored: ' + json.total_users);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"users\": [\n    {\n      \"user_id\": \"user_ahmed\",\n      \"name\": \"Ahmed Khan\",\n      \"gender\": \"male\",\n      \"age\": 30,\n      \"height_cm\": 178,\n      \"marital_status\": \"never_married\",\n      \"mother_tongue\": \"Urdu\",\n      \"religion\": \"Islam\",\n      \"sect\": \"Sunni\",\n      \"religious_practice\": \"practicing\",\n      \"education\": \"masters\",\n      \"education_field\": \"Computer Science\",\n      \"profession\": \"Software Engineer\",\n      \"profession_category\": \"Technology\",\n      \"employment_status\": \"employed\",\n      \"monthly_income\": 350000,\n      \"location\": { \"city\": \"Islamabad\", \"country\": \"Pakistan\" },\n      \"family_structure\": \"nuclear\",\n      \"living_arrangement\": \"separate_house\",\n      \"family_involvement\": \"moderate\",\n      \"interests\": [\"Technology\", \"Travel\", \"Reading\", \"Cooking\"],\n      \"hobbies\": [\"Hiking\", \"Chess\"],\n      \"personality_traits\": [\"Analytical\", \"Calm\", \"Ambitious\"],\n      \"smoking\": false,\n      \"drinking\": false,\n      \"diet\": \"Halal\",\n      \"exercise\": \"regular\",\n      \"social_lifestyle\": \"balanced\",\n      \"marriage_timeline\": \"within_1_year\",\n      \"children_preference\": \"want_children\",\n      \"relocation\": \"negotiable\",\n      \"career_expectation\": \"continue_career\",\n      \"partner_preferences\": {\n        \"gender\": \"female\",\n        \"age_range\": { \"min\": 24, \"max\": 30 },\n        \"height_range\": { \"min_cm\": 155, \"max_cm\": 172 },\n        \"location\": [\"Islamabad\", \"Rawalpindi\"],\n        \"country\": [\"Pakistan\"],\n        \"marital_status\": [\"never_married\"],\n        \"religion\": [\"Islam\"],\n        \"sect\": [\"Sunni\"],\n        \"religious_practice\": [\"practicing\", \"moderately_practicing\"],\n        \"min_education\": \"bachelors\",\n        \"preferred_field\": [\"Medicine\", \"Computer Science\"],\n        \"profession\": [\"Doctor\", \"Teacher\", \"Software Engineer\"],\n        \"employment_status\": [\"employed\", \"self_employed\"],\n        \"income_range\": { \"min\": 80000, \"max\": 400000, \"currency\": \"PKR\" },\n        \"family_structure\": [\"nuclear\"],\n        \"living_arrangement\": [\"separate_house\", \"independent\"],\n        \"family_involvement\": [\"moderate\", \"low\"],\n        \"smoking\": false,\n        \"diet\": [\"Halal\"],\n        \"exercise\": [\"regular\", \"daily\"],\n        \"social_lifestyle\": [\"balanced\", \"social\"],\n        \"personality_traits\": [\"Calm\", \"Empathetic\", \"Ambitious\"],\n        \"interests\": [\"Reading\", \"Travel\", \"Cooking\"],\n        \"marriage_timeline\": [\"within_1_year\", \"within_6_months\"],\n        \"children_preference\": [\"want_children\"],\n        \"relocation\": [\"willing\", \"negotiable\"],\n        \"career_expectation\": [\"continue_career\", \"flexible\"],\n        \"deal_breakers\": [\"smoking\"]\n      }\n    },\n    {\n      \"user_id\": \"user_fatima\",\n      \"name\": \"Fatima Ali\",\n      \"gender\": \"female\",\n      \"age\": 27,\n      \"height_cm\": 163,\n      \"marital_status\": \"never_married\",\n      \"mother_tongue\": \"Urdu\",\n      \"religion\": \"Islam\",\n      \"sect\": \"Sunni\",\n      \"religious_practice\": \"practicing\",\n      \"education\": \"masters\",\n      \"education_field\": \"Medicine\",\n      \"profession\": \"Doctor\",\n      \"profession_category\": \"Healthcare\",\n      \"employment_status\": \"employed\",\n      \"monthly_income\": 220000,\n      \"location\": { \"city\": \"Islamabad\", \"country\": \"Pakistan\" },\n      \"family_structure\": \"nuclear\",\n      \"living_arrangement\": \"separate_house\",\n      \"family_involvement\": \"moderate\",\n      \"interests\": [\"Reading\", \"Travel\", \"Cooking\", \"Art\"],\n      \"personality_traits\": [\"Empathetic\", \"Calm\", \"Creative\"],\n      \"smoking\": false,\n      \"drinking\": false,\n      \"diet\": \"Halal\",\n      \"exercise\": \"regular\",\n      \"social_lifestyle\": \"balanced\",\n      \"marriage_timeline\": \"within_1_year\",\n      \"children_preference\": \"want_children\",\n      \"relocation\": \"negotiable\",\n      \"career_expectation\": \"continue_career\",\n      \"partner_preferences\": {\n        \"gender\": \"male\",\n        \"age_range\": { \"min\": 28, \"max\": 35 },\n        \"height_range\": { \"min_cm\": 170, \"max_cm\": 190 },\n        \"location\": [\"Islamabad\"],\n        \"country\": [\"Pakistan\"],\n        \"marital_status\": [\"never_married\"],\n        \"religion\": [\"Islam\"],\n        \"sect\": [\"Sunni\"],\n        \"religious_practice\": [\"practicing\"],\n        \"min_education\": \"masters\",\n        \"preferred_field\": [\"Computer Science\", \"Engineering\"],\n        \"profession\": [\"Software Engineer\", \"Doctor\"],\n        \"employment_status\": [\"employed\", \"business_owner\"],\n        \"income_range\": { \"min\": 200000, \"max\": 800000 },\n        \"family_structure\": [\"nuclear\"],\n        \"living_arrangement\": [\"separate_house\"],\n        \"family_involvement\": [\"moderate\", \"low\"],\n        \"smoking\": false,\n        \"diet\": [\"Halal\"],\n        \"exercise\": [\"regular\", \"daily\"],\n        \"social_lifestyle\": [\"balanced\"],\n        \"personality_traits\": [\"Ambitious\", \"Calm\"],\n        \"interests\": [\"Travel\", \"Reading\"],\n        \"marriage_timeline\": [\"within_1_year\"],\n        \"children_preference\": [\"want_children\"],\n        \"relocation\": [\"negotiable\", \"willing\"],\n        \"career_expectation\": [\"continue_career\"],\n        \"deal_breakers\": [\"smoking\"]\n      }\n    },\n    {\n      \"user_id\": \"user_ayesha\",\n      \"name\": \"Ayesha Malik\",\n      \"gender\": \"female\",\n      \"age\": 26,\n      \"height_cm\": 158,\n      \"marital_status\": \"never_married\",\n      \"mother_tongue\": \"Punjabi\",\n      \"religion\": \"Islam\",\n      \"sect\": \"Sunni\",\n      \"religious_practice\": \"moderately_practicing\",\n      \"education\": \"bachelors\",\n      \"education_field\": \"Business Administration\",\n      \"profession\": \"Marketing Manager\",\n      \"profession_category\": \"Business\",\n      \"employment_status\": \"employed\",\n      \"monthly_income\": 120000,\n      \"location\": { \"city\": \"Lahore\", \"country\": \"Pakistan\" },\n      \"family_structure\": \"joint\",\n      \"living_arrangement\": \"with_parents\",\n      \"family_involvement\": \"high\",\n      \"interests\": [\"Music\", \"Shopping\", \"Travel\"],\n      \"personality_traits\": [\"Extroverted\", \"Creative\"],\n      \"smoking\": false,\n      \"drinking\": false,\n      \"diet\": \"Halal\",\n      \"exercise\": \"occasional\",\n      \"social_lifestyle\": \"very_social\",\n      \"marriage_timeline\": \"no_rush\",\n      \"children_preference\": \"undecided\",\n      \"relocation\": \"not_willing\",\n      \"career_expectation\": \"flexible\",\n      \"partner_preferences\": {\n        \"gender\": \"male\",\n        \"age_range\": { \"min\": 27, \"max\": 33 },\n        \"location\": [\"Lahore\"],\n        \"country\": [\"Pakistan\"],\n        \"marital_status\": [\"never_married\"],\n        \"religion\": [\"Islam\"],\n        \"sect\": [\"Sunni\"],\n        \"min_education\": \"bachelors\",\n        \"employment_status\": [\"employed\", \"business_owner\"],\n        \"family_structure\": [\"joint\"],\n        \"living_arrangement\": [\"with_parents\"],\n        \"family_involvement\": [\"high\"],\n        \"smoking\": false,\n        \"social_lifestyle\": [\"very_social\", \"social\"],\n        \"marriage_timeline\": [\"no_rush\"],\n        \"children_preference\": [\"undecided\", \"want_children\"],\n        \"relocation\": [\"not_willing\"]\n      }\n    },\n    {\n      \"user_id\": \"user_sana\",\n      \"name\": \"Sana Rehman\",\n      \"gender\": \"female\",\n      \"age\": 29,\n      \"height_cm\": 166,\n      \"marital_status\": \"divorced\",\n      \"mother_tongue\": \"Urdu\",\n      \"religion\": \"Islam\",\n      \"sect\": \"Shia\",\n      \"religious_practice\": \"practicing\",\n      \"education\": \"doctorate\",\n      \"education_field\": \"Computer Science\",\n      \"profession\": \"Lecturer\",\n      \"profession_category\": \"Education\",\n      \"employment_status\": \"employed\",\n      \"monthly_income\": 180000,\n      \"location\": { \"city\": \"Rawalpindi\", \"country\": \"Pakistan\" },\n      \"family_structure\": \"nuclear\",\n      \"living_arrangement\": \"independent\",\n      \"family_involvement\": \"low\",\n      \"interests\": [\"Reading\", \"Technology\", \"Cooking\"],\n      \"personality_traits\": [\"Analytical\", \"Calm\"],\n      \"smoking\": false,\n      \"drinking\": false,\n      \"diet\": \"Halal\",\n      \"exercise\": \"daily\",\n      \"social_lifestyle\": \"reserved\",\n      \"marriage_timeline\": \"within_6_months\",\n      \"children_preference\": \"want_children\",\n      \"relocation\": \"willing\",\n      \"career_expectation\": \"continue_career\",\n      \"partner_preferences\": {\n        \"gender\": \"male\",\n        \"age_range\": { \"min\": 28, \"max\": 38 },\n        \"religion\": [\"Islam\"],\n        \"sect\": [\"Shia\"],\n        \"min_education\": \"masters\",\n        \"location\": [\"Rawalpindi\", \"Islamabad\"],\n        \"smoking\": false,\n        \"marriage_timeline\": [\"within_6_months\", \"immediately\"],\n        \"children_preference\": [\"want_children\"]\n      }\n    },\n    {\n      \"user_id\": \"user_zara\",\n      \"name\": \"Zara Sheikh\",\n      \"gender\": \"female\",\n      \"age\": 25,\n      \"height_cm\": 168,\n      \"marital_status\": \"never_married\",\n      \"mother_tongue\": \"Urdu\",\n      \"religion\": \"Islam\",\n      \"sect\": \"Sunni\",\n      \"religious_practice\": \"moderately_practicing\",\n      \"education\": \"bachelors\",\n      \"education_field\": \"Computer Science\",\n      \"profession\": \"Software Engineer\",\n      \"profession_category\": \"Technology\",\n      \"employment_status\": \"employed\",\n      \"monthly_income\": 150000,\n      \"location\": { \"city\": \"Rawalpindi\", \"country\": \"Pakistan\" },\n      \"family_structure\": \"nuclear\",\n      \"living_arrangement\": \"independent\",\n      \"family_involvement\": \"low\",\n      \"interests\": [\"Technology\", \"Reading\", \"Travel\"],\n      \"personality_traits\": [\"Ambitious\", \"Calm\", \"Analytical\"],\n      \"smoking\": false,\n      \"drinking\": false,\n      \"diet\": \"Halal\",\n      \"exercise\": \"daily\",\n      \"social_lifestyle\": \"balanced\",\n      \"marriage_timeline\": \"within_6_months\",\n      \"children_preference\": \"want_children\",\n      \"relocation\": \"willing\",\n      \"career_expectation\": \"continue_career\",\n      \"partner_preferences\": {\n        \"gender\": \"male\",\n        \"age_range\": { \"min\": 26, \"max\": 34 },\n        \"height_range\": { \"min_cm\": 170, \"max_cm\": 195 },\n        \"location\": [\"Islamabad\", \"Rawalpindi\"],\n        \"country\": [\"Pakistan\"],\n        \"marital_status\": [\"never_married\"],\n        \"religion\": [\"Islam\"],\n        \"sect\": [\"Sunni\"],\n        \"religious_practice\": [\"practicing\", \"moderately_practicing\"],\n        \"min_education\": \"bachelors\",\n        \"preferred_field\": [\"Computer Science\", \"Engineering\"],\n        \"employment_status\": [\"employed\", \"self_employed\", \"business_owner\"],\n        \"income_range\": { \"min\": 150000, \"max\": 900000 },\n        \"family_structure\": [\"nuclear\"],\n        \"living_arrangement\": [\"separate_house\", \"independent\"],\n        \"family_involvement\": [\"low\", \"moderate\"],\n        \"smoking\": false,\n        \"diet\": [\"Halal\"],\n        \"exercise\": [\"regular\", \"daily\"],\n        \"social_lifestyle\": [\"balanced\", \"reserved\"],\n        \"personality_traits\": [\"Analytical\", \"Ambitious\"],\n        \"interests\": [\"Technology\", \"Travel\"],\n        \"marriage_timeline\": [\"within_6_months\", \"within_1_year\"],\n        \"children_preference\": [\"want_children\"],\n        \"relocation\": [\"willing\", \"negotiable\"],\n        \"career_expectation\": [\"continue_career\"],\n        \"deal_breakers\": [\"smoking\"]\n      }\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] },
+        "description": "Step 1: Backend sends ALL users (with profiles + partner_preferences).\n\nRun this FIRST to load users into the model.\nEdit users to add/remove/modify profiles and preferences."
+      }
+    },
+    {
+      "name": "3 - Get Matches for Ahmed (GET /match/user_ahmed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Matches returned', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.success).to.be.true;",
+              "  pm.expect(json.matches).to.be.an('array');",
+              "  console.log('Total evaluated: ' + json.total_users_evaluated);",
+              "  console.log('Matches found: ' + json.total_matches);",
+              "  json.matches.forEach(function(m) {",
+              "    var d1 = m.your_preferences_match.score;",
+              "    var d2 = m.their_preferences_match.evaluated ? m.their_preferences_match.score : 'N/A';",
+              "    console.log(m.candidate_name + ' | you->them: ' + d1 + '% | them->you: ' + d2 + '% | mutual: ' + m.match_score + '% | ' + m.match_status);",
+              "  });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/match/user_ahmed",
+          "host": ["{{base_url}}"],
+          "path": ["match", "user_ahmed"]
+        },
+        "description": "Step 2: Get matchmaking results for Ahmed.\n\nMake sure Step 2 (Upload Users) has been run first.\n\nChange user_ahmed to any other user_id to see their matches:\n  /match/user_fatima\n  /match/user_ayesha\n  /match/user_zara"
+      }
+    },
+    {
+      "name": "4 - Get Matches for Fatima (GET /match/user_fatima)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Matches returned', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.success).to.be.true;",
+              "  console.log('Fatima matches: ' + json.total_matches + '/' + json.total_users_evaluated);",
+              "  json.matches.forEach(function(m) {",
+              "    console.log(m.candidate_name + ' | mutual: ' + m.match_score + '% | ' + m.match_status);",
+              "  });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/match/user_fatima",
+          "host": ["{{base_url}}"],
+          "path": ["match", "user_fatima"]
+        },
+        "description": "Get matchmaking results for Fatima. She looks for a Sunni male, 28-35, Doctor or Software Engineer."
+      }
+    },
+    {
+      "name": "5 - Get Matches with Filters",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Filtered results', function () {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.success).to.be.true;",
+              "  console.log('Top 2 matches (min score 50):');",
+              "  json.matches.forEach(function(m) {",
+              "    console.log(m.candidate_name + ' | mutual: ' + m.match_score + '%');",
+              "  });",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/match/user_ahmed?top_n=2&min_score=50",
+          "host": ["{{base_url}}"],
+          "path": ["match", "user_ahmed"],
+          "query": [
+            { "key": "top_n", "value": "2", "description": "Return only top 2 matches" },
+            { "key": "min_score", "value": "50", "description": "Drop matches below 50%" }
+          ]
+        },
+        "description": "Ahmed ke sirf top 2 matches jo 50%+ score rakhte hain."
+      }
+    }
+  ]
+}
