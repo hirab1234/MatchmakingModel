@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "matchmaking-api",
-      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeExecutable": ".venv/bin/python",
       "runtimeArgs": ["-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", "8010"],
       "port": 8010
     }

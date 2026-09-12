@@ -1,0 +1,28 @@
+[Unit]
+Description=AI Matchmaking Model (FastAPI/uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hamqa5023
+Group=hamqa5023
+WorkingDirectory=/home/hamqadam.com/matchmaking-model
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+# Optional settings (MATCHMAKING_API_KEY, MATCHMAKING_ALLOWED_ORIGINS) live here.
+EnvironmentFile=-/home/hamqadam.com/matchmaking-model/.env
+
+# --workers 1 is REQUIRED: the user pool is held in process memory, so a second
+# worker would serve GET /match from a pool that never received POST /users.
+ExecStart=/home/hamqadam.com/matchmaking-model/.venv/bin/uvicorn app:app \
+    --host 127.0.0.1 --port 8011 --workers 1 \
+    --proxy-headers --forwarded-allow-ips=127.0.0.1
+
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

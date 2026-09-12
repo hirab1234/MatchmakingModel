@@ -10,12 +10,13 @@ AI Matchmaking Model - FastAPI Application
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -50,6 +51,12 @@ logger = logging.getLogger("matchmaking.api")
 # ---------------------------------------------------------------------------
 
 _users: Dict[str, UserProfile] = {}  # user_id → profile
+
+# Deployment settings (env-driven, safe defaults)
+_API_KEY = os.environ.get("MATCHMAKING_API_KEY", "").strip()
+_ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get("MATCHMAKING_ALLOWED_ORIGINS", "*").split(",") if o.strip()
+] or ["*"]
 _config = get_config()
 _mutual_engine = MutualMatchingEngine(_config)
 
@@ -70,11 +77,31 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_ALLOWED_ORIGINS,
+    # Credentials cannot be combined with a "*" origin (browsers reject it).
+    allow_credentials=_ALLOWED_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Optional API-key guard
+#
+# Disabled by default (MATCHMAKING_API_KEY unset) so existing backend calls
+# keep working. Set the env var and send `X-API-Key: <key>` to lock the API
+# down; the health check stays open so uptime probes keep working.
+# ---------------------------------------------------------------------------
+
+
+async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
+    if not _API_KEY:
+        return
+    if x_api_key != _API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": True, "code": "UNAUTHORIZED", "message": "Invalid or missing X-API-Key header."},
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +125,7 @@ class UsersUploadResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@app.post("/users", response_model=UsersUploadResponse)
+@app.post("/users", response_model=UsersUploadResponse, dependencies=[Depends(require_api_key)])
 async def upload_users(request: UsersUploadRequest):
     """Backend sends ALL user data to the matchmaking model.
 
@@ -128,7 +155,7 @@ async def upload_users(request: UsersUploadRequest):
 # ---------------------------------------------------------------------------
 
 
-@app.get("/match/{user_id}", response_model=MutualMatchResponse)
+@app.get("/match/{user_id}", response_model=MutualMatchResponse, dependencies=[Depends(require_api_key)])
 async def get_matches(
     user_id: str,
     top_n: Optional[int] = Query(None, ge=1, description="Return only top N matches"),
@@ -218,6 +245,18 @@ async def get_matches(
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
+
+@app.get("/")
+async def root():
+    """Service banner — confirms the API is live."""
+    return {
+        "service": "AI Matchmaking Model",
+        "model_version": _config.model_version,
+        "status": "live",
+        "docs": "/docs",
+        "endpoints": {"upload_users": "POST /users", "match": "GET /match/{user_id}", "health": "GET /health"},
+    }
 
 
 @app.get("/health")
