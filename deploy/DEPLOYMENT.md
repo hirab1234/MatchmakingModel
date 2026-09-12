@@ -112,3 +112,37 @@ ssh hamqadam-vps '/usr/local/bin/deploy-matchmaking.sh'              # deploy ma
 ssh hamqadam-vps '/usr/local/bin/deploy-matchmaking.sh <old-sha>'    # roll back
 tail -f /var/log/matchmaking-deploy.log
 ```
+
+---
+
+# Backend integration (hamqadam Laravel app)
+
+`App\Services\Api\V1\Matching\MatchmakingIntegrationService` is the only caller.
+It uses **`POST /match`** exclusively — one stateless call carrying the viewer
+and the candidate pool. Configured with:
+
+```
+MATCHMAKING_BASE_URL=https://matchmaking.hamqadam.com
+MATCHMAKING_TIMEOUT=30
+MATCHMAKING_API_KEY=          # only when the guard is switched on
+```
+
+## Contract notes
+
+- Every profile/preference key the backend emits is recognised by the model;
+  `UserProfile` and `PartnerPreferences` both allow extra keys, so an unmapped
+  field is ignored rather than rejected.
+- Language and location values are passed as **raw database ids as strings** on
+  both the profile and the preference side, so they compare against each other.
+  Religion is passed by **name**. Do not mix the two conventions.
+- `POST /match` returns **422 if the viewer has no `partner_preferences`** — the
+  model cannot score anything without them. The backend checks for this before
+  calling, so a missing-preferences user is reported as a warning rather than
+  being mistaken for an outage.
+- A preference criterion whose matching profile field is never sent scores as
+  `unknown` and costs every candidate the same few points. Only send a
+  preference the profile side can actually answer.
+
+## Measured on live
+
+24 real candidates scored in ~1.2s end to end, including the HTTPS round trip.
