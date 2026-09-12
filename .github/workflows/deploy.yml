@@ -1,0 +1,128 @@
+name: CI/CD
+
+# Every push to master is tested, deployed to matchmaking.hamqadam.com, and then
+# verified against the live URL. A failed deploy rolls the server back on its own
+# (see deploy/deploy-matchmaking.sh), so master is always what is serving.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  LIVE_URL: https://matchmaking.hamqadam.com
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Unit and integration tests
+        run: python -m pytest matchmaking/tests -q
+        env:
+          PYTHONPATH: .
+
+      - name: App imports and exposes the expected routes
+        env:
+          PYTHONPATH: .
+        run: |
+          python - <<'PY'
+          from app import app
+          paths = {r.path for r in app.routes if hasattr(r, "path")}
+          required = {"/", "/health", "/users", "/match/{user_id}"}
+          missing = required - paths
+          assert not missing, f"missing routes: {missing}"
+          print("routes OK:", sorted(required))
+          PY
+
+      - name: End-to-end smoke test against a real server
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m uvicorn app:app --host 127.0.0.1 --port 8011 --workers 1 &
+          echo $! > /tmp/uvicorn.pid
+          python deploy/smoke_test.py http://127.0.0.1:8011
+          kill "$(cat /tmp/uvicorn.pid)"
+
+      - name: API key guard actually blocks unauthenticated calls
+        env:
+          PYTHONPATH: .
+          MATCHMAKING_API_KEY: ci-test-key
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from app import app
+          c = TestClient(app)
+          assert c.get("/health").status_code == 200, "health must stay open"
+          assert c.get("/match/x").status_code == 401, "missing key must be rejected"
+          assert c.get("/match/x", headers={"X-API-Key": "wrong"}).status_code == 401
+          assert c.get("/match/x", headers={"X-API-Key": "ci-test-key"}).status_code == 404
+          print("API key guard OK")
+          PY
+
+  deploy:
+    name: Deploy to production
+    needs: test
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy commit ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o ConnectTimeout=20 \
+              root@${{ secrets.DEPLOY_HOST }} "deploy ${{ github.sha }}"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
+
+  verify:
+    name: Verify live site
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install -r requirements.txt
+
+      - name: Smoke test the live deployment
+        env:
+          PYTHONPATH: .
+          MATCHMAKING_API_KEY: ${{ secrets.MATCHMAKING_API_KEY }}
+        run: python deploy/smoke_test.py "$LIVE_URL"
+
+      - name: Confirm the live site is serving this commit
+        run: |
+          echo "Deployed commit: ${{ github.sha }}"
+          curl -fsS "$LIVE_URL/health"

@@ -66,3 +66,49 @@ Leaving `MATCHMAKING_API_KEY` unset keeps the API open (current behaviour).
 
 - code: `/root/matchmaking-model.bak.<timestamp>`
 - vhost: `/usr/local/lsws/conf/vhosts/matchmaking.hamqadam.com/vhost.conf.bak.<timestamp>`
+
+---
+
+# CI/CD pipeline
+
+`.github/workflows/deploy.yml` — every push to `master`:
+
+1. **test** — Python 3.11, `pytest` (121 tests), route check, a real end-to-end
+   smoke test against a uvicorn started in the runner, and a check that the API
+   key guard rejects unauthenticated calls.
+2. **deploy** — SSH to the server and run `deploy <sha>`.
+3. **verify** — runs `deploy/smoke_test.py` against https://matchmaking.hamqadam.com,
+   so the pipeline is only green if live matchmaking actually worked.
+
+Pull requests run **test** only. Deploys are serialised by a concurrency group.
+
+## Server side
+
+`/usr/local/bin/deploy-matchmaking.sh <sha>` does the real work:
+fetch → reset to that exact commit → `pip install -r requirements.txt` →
+run the test suite **on the server** → restart → health check.
+**If the tests or the health check fail it automatically rolls back** to the
+commit that was previously running and restarts it. Log: `/var/log/matchmaking-deploy.log`.
+
+The CI key is locked down in root's `authorized_keys` with
+`command="/usr/local/bin/gha-deploy-wrapper.sh"` plus `no-pty`, `no-port-forwarding`,
+`no-agent-forwarding`, `no-X11-forwarding`. The wrapper only accepts
+`deploy` or `deploy <40-hex-sha>` — the key cannot open a shell or run
+anything else on the server.
+
+## Required GitHub secrets
+
+| Secret | Value |
+|---|---|
+| `DEPLOY_SSH_KEY` | private key `~/.matchmaking-ci/gha_deploy` |
+| `DEPLOY_HOST` | `187.127.190.176` |
+| `DEPLOY_KNOWN_HOSTS` | `187.127.190.176 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbddYBxMfLkJxOoQbJwOhTe8CpsJ8u1AkRSRHhpP6op` |
+| `MATCHMAKING_API_KEY` | optional — only if the API key guard is switched on |
+
+## Manual deploy / rollback
+
+```bash
+ssh hamqadam-vps '/usr/local/bin/deploy-matchmaking.sh'              # deploy master HEAD
+ssh hamqadam-vps '/usr/local/bin/deploy-matchmaking.sh <old-sha>'    # roll back
+tail -f /var/log/matchmaking-deploy.log
+```

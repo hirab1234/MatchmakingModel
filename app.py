@@ -189,6 +189,65 @@ async def get_matches(
 
     # 3. Get all OTHER users as candidates
     candidates = [u for u in _users.values() if u.user_id != user_id]
+
+    # 4. Run mutual matching
+    return _run_matching(user, user_prefs, candidates, top_n, min_score, start_time)
+
+
+# ---------------------------------------------------------------------------
+# API 3: POST /match  — stateless, one call, no shared state
+# ---------------------------------------------------------------------------
+
+
+@app.post("/match", response_model=MutualMatchResponse, dependencies=[Depends(require_api_key)])
+async def match_stateless(
+    request: MutualMatchRequest,
+    top_n: Optional[int] = Query(None, ge=1, description="Return only top N matches"),
+    min_score: Optional[int] = Query(None, ge=0, le=100, description="Drop results below this score"),
+):
+    """Score one user against a candidate list in a single request.
+
+    Preferred over POST /users + GET /match/{id} for concurrent traffic: the
+    pool travels with the request, so two users matching at the same moment
+    cannot overwrite each other's candidate set.
+    """
+    start_time = time.time()
+
+    user = Normalizer.normalize_user_profile(request.logged_in_user)
+    user_prefs = request.partner_preferences or user.partner_preferences
+    if user_prefs is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": True,
+                "code": "NO_PREFERENCES",
+                "message": "No partner_preferences supplied, either top-level or on logged_in_user.",
+            },
+        )
+
+    candidates = [
+        Normalizer.normalize_user_profile(u)
+        for u in request.users
+        if u.user_id != user.user_id
+    ]
+
+    return _run_matching(user, user_prefs, candidates, top_n, min_score, start_time)
+
+
+# ---------------------------------------------------------------------------
+# Shared matching routine
+# ---------------------------------------------------------------------------
+
+
+def _run_matching(
+    user: UserProfile,
+    user_prefs: PartnerPreferences,
+    candidates: List[UserProfile],
+    top_n: Optional[int],
+    min_score: Optional[int],
+    start_time: float,
+) -> MutualMatchResponse:
+    """Score `user` against `candidates` and build the API response."""
     if not candidates:
         elapsed_ms = (time.time() - start_time) * 1000
         return MutualMatchResponse(
@@ -196,14 +255,13 @@ async def get_matches(
             model_version=_config.model_version,
             request_id=str(uuid.uuid4()),
             processing_time_ms=round(elapsed_ms, 2),
-            logged_in_user_id=user_id,
+            logged_in_user_id=user.user_id,
             total_users_evaluated=0,
             total_matches=0,
             matches=[],
             warnings=["No other users available for matching"],
         )
 
-    # 4. Run mutual matching
     try:
         results, warnings = _mutual_engine.match_against_list(
             user=user,
@@ -218,7 +276,7 @@ async def get_matches(
             r.processing_time_ms = round(elapsed_ms, 2)
 
         logger.info(
-            f"Match for {user_id}: {len(results)} evaluated, "
+            f"Match for {user.user_id}: {len(results)} evaluated, "
             f"{sum(1 for r in results if r.is_match)} matches, {elapsed_ms:.0f}ms"
         )
 
@@ -227,7 +285,7 @@ async def get_matches(
             model_version=_config.model_version,
             request_id=str(uuid.uuid4()),
             processing_time_ms=round(elapsed_ms, 2),
-            logged_in_user_id=user_id,
+            logged_in_user_id=user.user_id,
             total_users_evaluated=len(candidates),
             total_matches=sum(1 for r in results if r.is_match),
             matches=results,
@@ -235,7 +293,7 @@ async def get_matches(
         )
 
     except Exception as e:
-        logger.error(f"Match error for {user_id}: {e}")
+        logger.error(f"Match error for {user.user_id}: {e}")
         raise HTTPException(
             status_code=500,
             detail={"error": True, "code": "MATCH_ERROR", "message": str(e)},
